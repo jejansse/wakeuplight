@@ -1,11 +1,13 @@
 #include <Wire.h>
 #include <DS1307RTC.h>
 #include <Time.h>
+#include <TimeAlarms.h>
 #include <LiquidCrystal_I2C.h>
 
 // Set the pins on the I2C chip used for LCD connections:
 //                    addr,en,rw,rs,d4,d5,d6,d7,bl,blpol
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+int LIGHT_PIN = 6;
 
 void setup() {
   // Initialize serial interface
@@ -22,6 +24,13 @@ void setup() {
   } else {
     Serial.println("INFO: System time set from RTC");
   }
+  
+  // Set pin for lights
+  pinMode(LIGHT_PIN, OUTPUT);
+  
+  // DEBUG: set alarm for testing
+  Serial.println("Setting alarm");
+  Alarm.timerOnce(5, turnOnLights);
 }
 
 void loop() {
@@ -32,7 +41,8 @@ void loop() {
     Serial.println("ERROR: Time was not set!");
     delay(4000);
   }
-  delay(1000);
+  // (!) Use Alarm.delay instead of delay otherwise alarms won't trigger!
+  Alarm.delay(1000);
 }
 
 void displayLCDClock(time_t t) {
@@ -63,4 +73,10 @@ String formatTimeString(int time) {
   }
 }
 
-
+void turnOnLights() {
+  Serial.println("Turning on lights");
+  for (int i = 0; i < 255; i++) {
+    analogWrite(LIGHT_PIN, i);
+    Alarm.delay(100);
+  }
+}
