@@ -36,7 +36,7 @@ void loop() {
 }
 
 void displayLCDClock(time_t t) {
-  // Using String instead of sprintf saves 2MB of space
+  // Using String instead of sprintf saves 2KB of space
   String wdayStr = dayShortStr(weekday(t));
   String monthStr = monthShortStr(month(t));
   String dayStr = formatTimeString(day(t));
