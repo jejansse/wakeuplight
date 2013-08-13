@@ -39,17 +39,28 @@ void displayLCDClock(time_t t) {
   // Using String instead of sprintf saves 2MB of space
   String wdayStr = dayShortStr(weekday(t));
   String monthStr = monthShortStr(month(t));
-  String dayStr = String(day(t));
+  String dayStr = formatTimeString(day(t));
   String yearStr = String(year(t));
   String dateString = wdayStr + " " + monthStr + " " + dayStr + " " + yearStr;
-  String hourStr = String(hour(t));
-  String minStr = String(minute(t));
-  String secStr = String(second(t));
+  String hourStr = formatTimeString(hour(t));
+  String minStr = formatTimeString(minute(t));
+  String secStr = formatTimeString(second(t));
   String timeString = hourStr + ":" + minStr + ":" + secStr;
   lcd.setCursor(0,0);
   lcd.print(dateString);
   lcd.setCursor(4,1);
   lcd.print(timeString);
+}
+
+/*
+ Ensures time values are formatted with two decimals.
+*/
+String formatTimeString(int time) {
+  if (time < 10) {
+    return "0" + String(time);
+  } else {
+    return String(time);
+  }
 }
 
 
