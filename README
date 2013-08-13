@@ -1,0 +1,4 @@
+WakeUpLight
+===========
+
+WakeUpLight is an Arduino-based alarm clock that awakens you using light rather than sound. You can set the time and turn it off using bluetooth.
