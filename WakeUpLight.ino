@@ -2,12 +2,18 @@
 #include <DS1307RTC.h>
 #include <Time.h>
 #include <TimeAlarms.h>
+#include <Timezone.h>
 #include <LiquidCrystal_I2C.h>
 
 // Set the pins on the I2C chip used for LCD connections:
 //                    addr,en,rw,rs,d4,d5,d6,d7,bl,blpol
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 int LIGHT_PIN = 6;
+
+// Set timezone
+TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European Summer Time
+TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Standard Time
+Timezone CE(CEST, CET);
 
 void setup() {
   // Initialize serial interface
@@ -35,7 +41,7 @@ void setup() {
 
 void loop() {
   if (timeStatus() == timeSet) {
-    time_t t = now();
+    time_t t = CE.toLocal(now());
     displayLCDClock(t);
   } else {
     Serial.println("ERROR: Time was not set!");
