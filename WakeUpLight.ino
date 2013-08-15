@@ -42,6 +42,7 @@ void setup() {
 }
 
 void loop() {
+  // Draw clock
   if (timeStatus() == timeSet) {
     time_t t = CE.toLocal(now());
     displayLCDClock(t);
