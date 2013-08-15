@@ -8,6 +8,8 @@
 // Set the pins on the I2C chip used for LCD connections:
 //                    addr,en,rw,rs,d4,d5,d6,d7,bl,blpol
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+
+// The light transistor gate is connected to pin 6
 int LIGHT_PIN = 6;
 
 // Set timezone
