@@ -53,18 +53,17 @@ void loop() {
 
 void displayLCDClock(time_t t) {
   // Using String instead of sprintf saves 2KB of space
-  String wdayStr = dayShortStr(weekday(t));
-  String monthStr = monthShortStr(month(t));
+  String wdayStr = ((String)dayShortStr(weekday(t))).substring(0, 1);
+  String monthStr = formatTimeString(month(t));
   String dayStr = formatTimeString(day(t));
-  String yearStr = String(year(t));
-  String dateString = wdayStr + " " + monthStr + " " + dayStr + " " + yearStr;
+  String yearStr = String(year(t)).substring(2);
+  String dateString = wdayStr + " " + dayStr + "/" + monthStr + "/" + yearStr;
   String hourStr = formatTimeString(hour(t));
   String minStr = formatTimeString(minute(t));
-  String secStr = formatTimeString(second(t));
-  String timeString = hourStr + ":" + minStr + ":" + secStr;
+  String timeString = hourStr + ":" + minStr;
   lcd.setCursor(0,0);
   lcd.print(dateString);
-  lcd.setCursor(4,1);
+  lcd.setCursor(11,0);
   lcd.print(timeString);
 }
 
