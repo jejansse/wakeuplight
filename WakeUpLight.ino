@@ -29,8 +29,11 @@ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European S
 TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Standard Time
 Timezone CE(CEST, CET);
 
-// global that tells us whether the alarm is on
+// Global that tells us whether the alarm is on
 int alarmOn;
+
+// Global that keeps track of the current light intensity
+int lightIntensity;
 
 void setup() {
   // Initialize serial interface
@@ -119,12 +122,45 @@ String formatTimeString(int time) {
   }
 }
 
-void turnOnLights() {
-  Serial.println("Turning on lights");
-  for (int i = 0; i < 255; i++) {
-    analogWrite(LIGHT_PIN, i);
-    Alarm.delay(100);
+void activateAlarm() {
+  Serial.println("INFO: activateAlarm");
+  turnOnLights(++lightIntensity);
+  if (lightIntensity == 255) {
+    // At maximum intensity, so sound the alarm!
+    turnOnSound();  // Turn on the audio alarm
+    Alarm.timerOnce(3600, turnOffLights);  // Turn off the leds after 1h
+    Alarm.timerOnce(3600, turnOffSound);  // Turn off the sound after 1h
   }
+  // Every 17s the alarm increases, which corresponds to 15m of increasing light
+  Alarm.timerOnce(255/15, activateAlarm);
+}
+
+/**
+ Activates the audio alarm.
+**/
+void turnOnSound() {
+}
+
+/**
+ Disables the audio alarm.
+**/
+void turnOffSound() {
+}
+
+/**
+ Turns on the lights with a given intensity in 0-255.
+**/
+void turnOnLights(int intensity) {
+  Serial.println("INFO: Turning on lights");
+  analogWrite(LIGHT_PIN, intensity);
+}
+
+/**
+ Turns off the lights.
+**/
+void turnOffLights() {
+  Serial.println("INFO: Turning off lights");
+  analogWrite(LIGHT_PIN, 0);
 }
 
 void processInput(String str) {
@@ -157,7 +193,16 @@ void setAlarm(int alarmHour, int alarmMinute, boolean writeToRom) {
    // Convert alarm time to UTC to set the alarm
    time_t alarmTime = CE.toUTC(makeTime(alarmTimeElements));
    alarmOn = 1;
-   Alarm.alarmOnce(hour(alarmTime), minute(alarmTime), second(alarmTime), turnOnLights);
+   // Adjust the alarm time to 15m before to allow the light to come on
+   int adjustedAlarmHour, adjustedAlarmMinute;
+   if (minute(alarmTime) >= 15) {
+     adjustedAlarmHour = hour(alarmTime);
+     adjustedAlarmMinute = minute(alarmTime) - 15;
+   } else {
+     adjustedAlarmHour = hour(alarmTime) - 1;
+     adjustedAlarmMinute = minute(alarmTime) - 15 + 60;
+   }
+   Alarm.alarmOnce(adjustedAlarmHour, adjustedAlarmMinute, second(alarmTime), activateAlarm);
    if (writeToRom) {
      // Store the local alarm time in EEPROM
      EEPROM.write(0, 1);  // Alarm is turned ON
