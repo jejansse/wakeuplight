@@ -5,6 +5,7 @@
 #include <Timezone.h>
 #include <LiquidCrystal_I2C.h>
 #include <SoftwareSerial.h>
+#include <EEPROM.h>
 
 // Set the pins on the I2C chip used for LCD connections:
 //                    addr,en,rw,rs,d4,d5,d6,d7,bl,blpol
@@ -28,6 +29,9 @@ TimeChangeRule CEST = {"CEST", Last, Sun, Mar, 2, 120};     //Central European S
 TimeChangeRule CET = {"CET ", Last, Sun, Oct, 3, 60};       //Central European Standard Time
 Timezone CE(CEST, CET);
 
+// global that tells us whether the alarm is on
+int alarmOn;
+
 void setup() {
   // Initialize serial interface
   Serial.begin(9600);
@@ -47,6 +51,14 @@ void setup() {
     Serial.println("INFO: System time set from RTC");
   }
   
+  // Read alarm time from EEPROM and set it
+  alarmOn = EEPROM.read(0);
+  int alarmHour = EEPROM.read(1);
+  int alarmMinute = EEPROM.read(2);
+  if (alarmOn == 1) {
+    setAlarmWithoutWrite(alarmHour, alarmMinute);
+  }
+  
   // Set pin for lights
   pinMode(LIGHT_PIN, OUTPUT);
   
@@ -62,11 +74,8 @@ void loop() {
     displayLCDClock(t);
   } else {
     Serial.println("ERROR: Time was not set!");
-    delay(4000);
+    Alarm.delay(4000);
   }
-  
-  // (!) Use Alarm.delay instead of delay otherwise alarms won't trigger!
-  Alarm.delay(0);
   
   // Read commands sent over bluetooth
   while (BluetoothSerial.available()) {
@@ -78,6 +87,9 @@ void loop() {
       inputString = "";
     }
   }
+  
+  // (!) Use Alarm.delay to check whether the alarms need to be triggered.
+  Alarm.delay(0);
 }
 
 void displayLCDClock(time_t t) {
@@ -117,47 +129,49 @@ void turnOnLights() {
 
 void processInput(String str) {
   if (str.startsWith("ALARM")) {
-    // Format: ALARM WEEKDAY HHMM, with WEEKDAY an int
-    int alarmWeekDay = str.substring(6,7).toInt();
-    int alarmHour = str.substring(8,10).toInt();
-    int alarmMinute = str.substring(10,12).toInt();
-    timeDayOfWeek_t dow;
-    switch (alarmWeekDay) {
-      case 0:
-        dow = dowMonday;
-        break;
-      case 1:
-        dow = dowTuesday;
-        break;
-      case 2:
-        dow = dowWednesday;
-        break;
-      case 3:
-        dow = dowThursday;
-        break;
-      case 4:
-        dow = dowFriday;
-        break;
-      case 5:
-        dow = dowSaturday;
-        break;
-      case 6:
-        dow = dowSunday;
-        break;
-      default:
-        dow = dowInvalid;
-        break;
-    }
-    if (dow != dowInvalid && alarmHour != 0 && alarmMinute != 0) {
-      // FIXME: should set the time to UTC!
-      Alarm.alarmRepeat(dow, alarmHour, alarmMinute, 0, turnOnLights);
-      Serial.println("INFO: ALARM set at " + String(alarmWeekDay) + " " + String(alarmHour) + ":" + String(alarmMinute));
-    } else {
-      Serial.println("ERROR: Invalid ALARM command");
-    }
+    // Format: ALARM HHMM
+    int alarmHour = str.substring(6,8).toInt();
+    int alarmMinute = str.substring(8,10).toInt();
+    setAlarmWithWrite(alarmHour, alarmMinute);
   } else if (str.startsWith("TIME")) {
-    // Parse time and set time, but remember to set to UTC first!
+    // Parse time, convert to UTC and set it.
   } else {
     Serial.println("Invalid command");
   }
+}
+
+/**
+ Sets the alarm at the given local time hour and minute.
+**/
+void setAlarm(int alarmHour, int alarmMinute, boolean writeToRom) {
+   time_t t = now();
+   time_t localTime = CE.toLocal(t);
+   tmElements_t alarmTimeElements;
+   if (hour(localTime) > alarmHour && minute(localTime) > alarmMinute) {
+     breakTime(nextMidnight(t), alarmTimeElements);  // Alarm for next day
+   } else {
+     breakTime(previousMidnight(t), alarmTimeElements);  // Alarm for previous day
+   }
+   alarmTimeElements.Hour = alarmHour;
+   alarmTimeElements.Minute = alarmMinute;
+   // Convert alarm time to UTC to set the alarm
+   time_t alarmTime = CE.toUTC(makeTime(alarmTimeElements));
+   alarmOn = 1;
+   Alarm.alarmOnce(hour(alarmTime), minute(alarmTime), second(alarmTime), turnOnLights);
+   if (writeToRom) {
+     // Store the local alarm time in EEPROM
+     EEPROM.write(0, 1);  // Alarm is turned ON
+     EEPROM.write(1, alarmHour);
+     EEPROM.write(2, alarmMinute);
+   }
+   Serial.println("INFO: ALARM set at " + String(alarmHour) + ":" + String(alarmMinute) + " local time");
+   Serial.println("INFO: ALARM set at " + String(hour(alarmTime)) + ":" + String(minute(alarmTime)) + " UTC");
+}
+
+void setAlarmWithWrite(int alarmHour, int alarmMinute) {
+  setAlarm(alarmHour, alarmMinute, true);
+}
+
+void setAlarmWithoutWrite(int alarmHour, int alarmMinute) {
+  setAlarm(alarmHour, alarmMinute, false);
 }
